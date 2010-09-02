@@ -1,0 +1,17 @@
+Manifest-Version: 1.0
+Bundle-ManifestVersion: 2
+Bundle-Name: Databinding Aggregation
+Bundle-SymbolicName: net.juckel.rcp.databinding.aggregate
+Bundle-Version: 0.1.0.qualifier
+Bundle-Vendor: Juckel.Net
+Bundle-RequiredExecutionEnvironment: J2SE-1.5
+Import-Package: org.eclipse.core.databinding.observable,
+ org.eclipse.core.databinding.observable.list,
+ org.eclipse.core.databinding.observable.map,
+ org.eclipse.core.databinding.observable.set,
+ org.eclipse.core.databinding.observable.value,
+ org.eclipse.core.databinding.property.list,
+ org.eclipse.core.databinding.property.value
+Export-Package: net.juckel.rcp.databinding.aggregate;version="0.1.0",
+ net.juckel.rcp.databinding.aggregate.observables;version="0.1.0",
+ net.juckel.rcp.databinding.aggregate.property;version="0.1.0"

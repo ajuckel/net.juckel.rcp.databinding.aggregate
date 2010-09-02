@@ -1,0 +1,22 @@
+Manifest-Version: 1.0
+Bundle-ManifestVersion: 2
+Bundle-Name: Databinding Aggregation Tests
+Bundle-SymbolicName: net.juckel.rcp.databinding.aggregate.test
+Bundle-Version: 0.1.0.qualifier
+Bundle-Vendor: Juckel.Net
+Bundle-RequiredExecutionEnvironment: J2SE-1.5
+Import-Package: net.juckel.rcp.databinding.aggregate,
+ net.juckel.rcp.databinding.aggregate.property,
+ org.eclipse.core.databinding.beans,
+ org.eclipse.core.databinding.observable,
+ org.eclipse.core.databinding.observable.list,
+ org.eclipse.core.databinding.observable.map,
+ org.eclipse.core.databinding.observable.set,
+ org.eclipse.core.databinding.observable.value,
+ org.eclipse.core.databinding.property,
+ org.eclipse.core.databinding.property.list,
+ org.eclipse.core.databinding.property.map,
+ org.eclipse.core.databinding.property.set,
+ org.eclipse.core.databinding.property.value,
+ org.junit;version="4.5.0"
+
