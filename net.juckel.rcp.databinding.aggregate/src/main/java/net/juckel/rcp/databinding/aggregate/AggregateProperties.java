@@ -11,17 +11,13 @@
 
 package net.juckel.rcp.databinding.aggregate;
 
-import java.util.Collections;
 import java.util.List;
 
-import net.juckel.rcp.databinding.aggregate.property.AggregateProperty;
-import net.juckel.rcp.databinding.aggregate.property.AverageProperty;
-import net.juckel.rcp.databinding.aggregate.property.IAggregateProperty;
-import net.juckel.rcp.databinding.aggregate.property.IAggregation;
-import net.juckel.rcp.databinding.aggregate.property.SumProperty;
 import net.juckel.rcp.databinding.aggregate.property.WeightedAverageProperty;
 
 import org.eclipse.core.databinding.property.list.IListProperty;
+import org.eclipse.core.databinding.property.list.ListReducer;
+import org.eclipse.core.databinding.property.value.IValueProperty;
 
 /**
  * Utility class to provide static factory methods for aggregation-based
@@ -29,12 +25,36 @@ import org.eclipse.core.databinding.property.list.IListProperty;
  */
 public class AggregateProperties {
 
-	public static IAggregateProperty sum(IListProperty listProperty) {
-		return new SumProperty(listProperty);
+	public static IValueProperty sum(IListProperty listProperty) {
+		return listProperty.reduce(new ListReducer(Double.class) {
+			public Object reduce(@SuppressWarnings("rawtypes") List list) {
+				if (list.isEmpty()) {
+					return 0.0d;
+				} else {
+					double sum = 0.0;
+					for (Object d : list) {
+						sum += ((Number) d).doubleValue();
+					}
+					return sum;
+				}
+			}
+		});
 	}
 
-	public static IAggregateProperty average(IListProperty listProperty) {
-		return new AverageProperty(listProperty);
+	public static IValueProperty average(IListProperty listProperty) {
+		return listProperty.reduce(new ListReducer(Double.class) {
+			public Object reduce(@SuppressWarnings("rawtypes") List list) {
+				if (list.isEmpty()) {
+					return 0.0d;
+				} else {
+					double sum = 0.0;
+					for (Object d : list) {
+						sum += ((Number) d).doubleValue();
+					}
+					return sum / list.size();
+				}
+			}
+		});
 	}
 
 	public static WeightedAverageProperty weightedAverage(
@@ -50,14 +70,25 @@ public class AggregateProperties {
 	 * 
 	 * @return the minimum value
 	 */
-	public static IAggregateProperty min(IListProperty listProperty) {
-		return new AggregateProperty(new IAggregation() {
-			@SuppressWarnings("unchecked")
-			public Object calculate(List<Object>... values) {
-				Collections.sort((List<? extends Comparable<? super Object>>) values[0]);
-				return values[0].get(0);
+	public static IValueProperty min(IListProperty listProperty) {
+		return listProperty.reduce(new ListReducer(listProperty.getElementType()) {
+			public Object reduce(@SuppressWarnings("rawtypes") List list) {
+				if( list.size() == 0 ) {
+					return null;
+				} else {
+					@SuppressWarnings("unchecked")
+					Comparable<? super Object> min = (Comparable<? super Object>) list.get(0);
+					for( int i = 1; i < list.size(); i++ ) {
+						@SuppressWarnings("unchecked")
+						Comparable<? super Object> candidate = (Comparable<? super Object>) list.get(i);
+						if( candidate != null && candidate.compareTo(min) < 0 ) {
+							min = candidate;
+						}
+					}
+					return min;
+				}
 			}
-		}, listProperty);
+		});
 	}
 
 	/**
@@ -70,14 +101,25 @@ public class AggregateProperties {
 	 *            type must implement Comparable<? super Object>.
 	 * @return the maximum value
 	 */
-	public static IAggregateProperty max(IListProperty listProperty) {
-		return new AggregateProperty(new IAggregation() {
-			@SuppressWarnings("unchecked")
-			public Object calculate(List<Object>... values) {
-				Collections.sort((List<? extends Comparable<? super Object>>) values[0]);
-				return values[0].get(values[0].size() - 1);
+	public static IValueProperty max(IListProperty listProperty) {
+		return listProperty.reduce(new ListReducer(listProperty.getElementType()) {
+			public Object reduce(@SuppressWarnings("rawtypes") List list) {
+				if( list.size() == 0 ) {
+					return null;
+				} else {
+					@SuppressWarnings("unchecked")
+					Comparable<? super Object> max = (Comparable<? super Object>) list.get(0);
+					for( int i = 1; i < list.size(); i++ ) {
+						@SuppressWarnings("unchecked")
+						Comparable<? super Object> candidate = (Comparable<? super Object>) list.get(i);
+						if( candidate != null && candidate.compareTo(max) > 0 ) {
+							max = candidate;
+						}
+					}
+					return max;
+				}
 			}
-		}, listProperty);
+		});
 	}
 
 	/**
@@ -87,36 +129,16 @@ public class AggregateProperties {
 	 *            the list of objects from which we want the nth value.
 	 * @return the nth value in an observed list.
 	 */
-	public static IAggregateProperty nth(final int index,
-			IListProperty listProperty) {
-		return new AggregateProperty(new IAggregation() {
-			public Object calculate(List<Object>... values) {
-				if (0 <= index && index < values[0].size()) {
-					return values[0].get(index);
+	public static IValueProperty nth(final int index,
+			final IListProperty listProperty) {
+		return listProperty.reduce(new ListReducer(listProperty.getElementType()) {
+			public Object reduce(@SuppressWarnings("rawtypes") List list) {
+				if (0 <= index && index < list.size()) {
+					return list.get(index);
 				} else {
 					return null;
 				}
 			}
-		}, listProperty);
-
-	}
-
-	/**
-	 * <p>
-	 * Here for unforeseen cases. Allows the user to implement their own
-	 * aggregation function, and tie into the infrastructure used by the
-	 * pre-existing aggregations.
-	 * </p>
-	 * 
-	 * @param aggregation
-	 *            the aggregation to perform
-	 * @param listProperty
-	 *            the list upon which the aggregation should be performed.
-	 * @return an IAggregateProperty that will use the given IAggregation to
-	 *         determine the observed value.
-	 */
-	public static IAggregateProperty customAggregation(
-			IAggregation aggregation, IListProperty listProperty) {
-		return new AggregateProperty(aggregation, listProperty);
+		});
 	}
 }
