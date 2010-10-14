@@ -16,6 +16,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+import org.eclipse.core.databinding.observable.Diffs;
 import org.eclipse.core.databinding.observable.IStaleListener;
 import org.eclipse.core.databinding.observable.StaleEvent;
 import org.eclipse.core.databinding.observable.map.AbstractObservableMap;
@@ -68,7 +69,7 @@ public class SetBackedAggregateObservableMap extends AbstractObservableMap {
 				observableValueMap.values());
 	}
 
-	private class MapEntry implements Map.Entry<Object, Object> {
+	private class MapEntry implements Map.Entry<Object, Object>, IValueChangeListener {
 		private Object key;
 		private IObservableValue observableValue;
 
@@ -83,9 +84,7 @@ public class SetBackedAggregateObservableMap extends AbstractObservableMap {
 		public Object getValue() {
 			if (this.observableValue == null) {
 				this.observableValue = aggregateProperty.observe(this.getKey());
-				if (listener != null) {
-					this.observableValue.addValueChangeListener(listener);
-				}
+				this.observableValue.addValueChangeListener(this);
 			}
 			return this.observableValue.getValue();
 		}
@@ -97,6 +96,11 @@ public class SetBackedAggregateObservableMap extends AbstractObservableMap {
 
 		public IObservableValue getObservableValue() {
 			return observableValue;
+		}
+
+		public void handleValueChange(ValueChangeEvent event) {
+			fireChange();
+			fireMapChange(Diffs.createMapDiffSingleChange(key, event.diff.getOldValue(), event.diff.getNewValue()));
 		}
 	}
 
@@ -117,45 +121,24 @@ public class SetBackedAggregateObservableMap extends AbstractObservableMap {
 		listener = new Listener();
 		this.masterKeySet.addSetChangeListener(listener);
 		this.masterKeySet.addStaleListener(listener);
-		for (Map.Entry<Object, MapEntry> entry : this.observableValueMap
-				.entrySet()) {
-			if (entry.getValue().getObservableValue() != null) {
-				entry.getValue().getObservableValue()
-						.addValueChangeListener(listener);
-			}
-		}
 	}
 
 	protected void lastListenerRemoved() {
-		for (Map.Entry<Object, MapEntry> entry : this.observableValueMap
-				.entrySet()) {
-			entry.getValue().getObservableValue()
-					.removeValueChangeListener(listener);
-		}
 		this.masterKeySet.removeStaleListener(listener);
 		this.masterKeySet.removeSetChangeListener(listener);
 		listener = null;
 	}
 
-	private class Listener implements IStaleListener, IValueChangeListener,
+	private class Listener implements IStaleListener,
 			ISetChangeListener {
+
 		public void handleStale(StaleEvent staleEvent) {
 			fireStale();
-		}
-
-		public void handleValueChange(ValueChangeEvent event) {
-			fireChange();
 		}
 
 		public void handleSetChange(SetChangeEvent event) {
 			for (Object newKey : event.diff.getAdditions()) {
 				observableValueMap.put(newKey, new MapEntry(newKey));
-			}
-			for (Object oldKey : event.diff.getRemovals()) {
-				MapEntry entry = observableValueMap.remove(oldKey);
-				if (entry != null && entry.getObservableValue() != null) {
-					entry.getObservableValue().removeValueChangeListener(this);
-				}
 			}
 		}
 	}

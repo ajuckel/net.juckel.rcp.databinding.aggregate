@@ -13,6 +13,7 @@ package net.juckel.rcp.databinding.aggregate.tests;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
 
 import java.util.List;
 
@@ -27,7 +28,9 @@ import org.eclipse.core.databinding.observable.IChangeListener;
 import org.eclipse.core.databinding.observable.Realm;
 import org.eclipse.core.databinding.observable.list.IObservableList;
 import org.eclipse.core.databinding.observable.list.WritableList;
+import org.eclipse.core.databinding.observable.map.IMapChangeListener;
 import org.eclipse.core.databinding.observable.map.IObservableMap;
+import org.eclipse.core.databinding.observable.map.MapChangeEvent;
 import org.eclipse.core.databinding.observable.set.IObservableSet;
 import org.eclipse.core.databinding.observable.set.ListToSetAdapter;
 import org.eclipse.core.databinding.observable.value.IObservableValue;
@@ -262,6 +265,16 @@ public class AggregatePropertiesTest {
  				studentList.get(0).getTestResults().add(ClassroomFactory.eINSTANCE.createExamResult(1,1));
  				studentList.get(0).getTestResults().add(ClassroomFactory.eINSTANCE.createExamResult(1,1));
 				assertEquals(2.0, (Double) map.get(studentList.get(0)), 0.0d);
+				final int[] updateCount = new int[1];
+				map.addMapChangeListener(new IMapChangeListener() {
+					public void handleMapChange(MapChangeEvent event) {
+						updateCount[0]++;
+					}
+				});
+				assertEquals(0, updateCount[0]);
+				studentList.get(0).getTestResults().get(0).setScore(5);
+				assertTrue(updateCount[0] > 0);
+				assertEquals(6.0, (Double) map.get(studentList.get(0)), 0.0d);
 			}
 		});
 	}
