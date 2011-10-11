@@ -30,128 +30,167 @@ import org.eclipse.core.databinding.observable.value.ValueChangeEvent;
 import net.juckel.rcp.databinding.aggregate.property.AggregateProperty;
 
 public class SetBackedAggregateObservableMap extends AbstractObservableMap {
-	private AggregateProperty aggregateProperty;
-	private IObservableSet masterKeySet;
-	private Map<Object, MapEntry> observableValueMap;
-	private Listener listener;
+    private AggregateProperty aggregateProperty;
+    private IObservableSet masterKeySet;
+    private Map<Object, MapEntry> observableValueMap;
+    private Listener listener;
+    private boolean hasListeners;
 
-	/**
-	 * Create an IObservableList will contain an IObservableValue created by the
-	 * valueFactory for each element in the masterList.
-	 * 
-	 * @param valueFactory
-	 * @param master
-	 */
-	public SetBackedAggregateObservableMap(AggregateProperty aggregateProperty,
-			IObservableSet masterKeySet) {
-		this.aggregateProperty = aggregateProperty;
-		this.masterKeySet = masterKeySet;
-		this.observableValueMap = new HashMap<Object, MapEntry>();
-		// Eagerly creating Map Entries, which will lazily create their
-		// observable values.
-		for (Object key : masterKeySet) {
-			this.observableValueMap.put(key, new MapEntry(key));
-		}
-	}
+    /**
+     * Create an IObservableList will contain an IObservableValue created by the
+     * valueFactory for each element in the masterList.
+     * 
+     * @param valueFactory
+     * @param master
+     */
+    public SetBackedAggregateObservableMap(AggregateProperty aggregateProperty,
+            IObservableSet masterKeySet) {
+        this.aggregateProperty = aggregateProperty;
+        this.masterKeySet = masterKeySet;
+        this.observableValueMap = new HashMap<Object, MapEntry>();
+        // Eagerly creating Map Entries, which will lazily create their
+        // observable values.
+        for (Object key : masterKeySet) {
+            this.observableValueMap.put(key, new MapEntry(key));
+        }
+        this.listener = new Listener();
+        this.masterKeySet.addSetChangeListener(this.listener);
+        this.masterKeySet.addStaleListener(this.listener);
+    }
 
-	@Override
-	public Object getKeyType() {
-		return masterKeySet.getElementType();
-	}
+    @Override
+    public Object getKeyType() {
+        return masterKeySet.getElementType();
+    }
 
-	public Object getElementType() {
-		return aggregateProperty.getValueType();
-	}
+    public Object getElementType() {
+        return aggregateProperty.getValueType();
+    }
 
-	@Override
-	public Set<Map.Entry<Object, Object>> entrySet() {
-		return new HashSet<Map.Entry<Object, Object>>(
-				observableValueMap.values());
-	}
+    @Override
+    public Set<Map.Entry<Object, Object>> entrySet() {
+        return new HashSet<Map.Entry<Object, Object>>(
+                observableValueMap.values());
+    }
 
-	private class MapEntry implements Map.Entry<Object, Object>, IValueChangeListener {
-		private Object key;
-		private IObservableValue observableValue;
+    private class MapEntry implements Map.Entry<Object, Object>,
+            IValueChangeListener {
+        private Object key;
+        private IObservableValue observableValue;
 
-		public MapEntry(Object key) {
-			this.key = key;
-		}
+        public MapEntry(Object key) {
+            this.key = key;
+        }
 
-		public Object getKey() {
-			return key;
-		}
+        public Object getKey() {
+            return key;
+        }
 
-		public Object getValue() {
-			if (this.observableValue == null) {
-				this.observableValue = aggregateProperty.observe(this.getKey());
-				this.observableValue.addValueChangeListener(this);
-			}
-			return this.observableValue.getValue();
-		}
+        public Object getValue() {
+            Object value = null;
+            if (!hasListeners) {
+                value = aggregateProperty.getValue(this.getKey());
+            } else if (this.observableValue == null) {
+                this.observableValue = aggregateProperty.observe(this.getKey());
+                this.observableValue.addValueChangeListener(this);
+                value = this.observableValue.getValue();
+            } else {
+                value = this.observableValue.getValue();
+            }
+            return value;
+        }
 
-		public Object setValue(Object value) {
-			throw new UnsupportedOperationException(
-					"AggregateObservableMaps are readonly");
-		}
+        public Object setValue(Object value) {
+            throw new UnsupportedOperationException(
+                    "AggregateObservableMaps are readonly");
+        }
 
-		public IObservableValue getObservableValue() {
-			return observableValue;
-		}
+        public IObservableValue getObservableValue() {
+            return observableValue;
+        }
 
-		public void handleValueChange(ValueChangeEvent event) {
-			fireChange();
-			fireMapChange(Diffs.createMapDiffSingleChange(key, event.diff.getOldValue(), event.diff.getNewValue()));
-		}
-	}
+        public void handleValueChange(ValueChangeEvent event) {
+            if (hasListeners) {
+                fireChange();
+                fireMapChange(Diffs.createMapDiffSingleChange(key,
+                        event.diff.getOldValue(), event.diff.getNewValue()));
+            }
+        }
 
-	@Override
-	public Object get(Object key) {
-		if (!masterKeySet.contains(key)) {
-			return null;
-		}
+        public void firstListenerAdded() {
+            if (this.observableValue == null) {
+                this.observableValue = aggregateProperty.observe(this.getKey());
+                this.observableValue.addValueChangeListener(this);
+            }
+        }
 
-		return observableValueMap.get(key).getValue();
-	}
+        public void dispose() {
+            if (this.observableValue != null) {
+                this.observableValue.dispose();
+            }
+        }
+    }
 
-	@Override
-	protected void firstListenerAdded() {
-		// First time we add a listener to this observableList, we need to hook
-		// up a listener to the masterList, as well as all observable values
-		// we've already created.
-		listener = new Listener();
-		this.masterKeySet.addSetChangeListener(listener);
-		this.masterKeySet.addStaleListener(listener);
-	}
+    @Override
+    public Object get(Object key) {
+        if (!masterKeySet.contains(key)) {
+            return null;
+        }
 
-	protected void lastListenerRemoved() {
-		this.masterKeySet.removeStaleListener(listener);
-		this.masterKeySet.removeSetChangeListener(listener);
-		listener = null;
-	}
+        MapEntry entry = observableValueMap.get(key);
+        if (entry == null) {
+            entry = new MapEntry(key);
+            observableValueMap.put(key, entry);
+        }
+        return entry.getValue();
+    }
 
-	private class Listener implements IStaleListener,
-			ISetChangeListener {
+    @Override
+    protected void firstListenerAdded() {
+        // First time we add a listener to this observableList, we need to hook
+        // up a listener to the masterList, as well as all observable values
+        // we've already created.
+        hasListeners = true;
+        for (Map.Entry<Object, MapEntry> entry : this.observableValueMap
+                .entrySet()) {
+            entry.getValue().firstListenerAdded();
+        }
+    }
 
-		public void handleStale(StaleEvent staleEvent) {
-			fireStale();
-		}
+    protected void lastListenerRemoved() {
+        for (Map.Entry<Object, MapEntry> entry : this.observableValueMap
+                .entrySet()) {
+            entry.getValue().getObservableValue().dispose();
+        }
+    }
 
-		public void handleSetChange(SetChangeEvent event) {
-			for (Object newKey : event.diff.getAdditions()) {
-				observableValueMap.put(newKey, new MapEntry(newKey));
-			}
-		}
-	}
+    private class Listener implements IStaleListener, ISetChangeListener {
 
-	@Override
-	public synchronized void dispose() {
-		if (listener != null) {
-			lastListenerRemoved();
-		}
-		for (Map.Entry<Object, MapEntry> entry : this.observableValueMap
-				.entrySet()) {
-			entry.getValue().getObservableValue().dispose();
-		}
-		super.dispose();
-	}
+        public void handleStale(StaleEvent staleEvent) {
+            fireStale();
+        }
+
+        public void handleSetChange(SetChangeEvent event) {
+            for (Object newKey : event.diff.getAdditions()) {
+                observableValueMap.put(newKey, new MapEntry(newKey));
+            }
+            for (Object oldKey : event.diff.getRemovals()) {
+                MapEntry oldEntry = observableValueMap.remove(oldKey);
+                if (oldEntry != null) {
+                    oldEntry.dispose();
+                }
+            }
+        }
+    }
+
+    @Override
+    public synchronized void dispose() {
+        if (hasListeners) {
+            lastListenerRemoved();
+        }
+        this.masterKeySet.removeStaleListener(listener);
+        this.masterKeySet.removeSetChangeListener(listener);
+        listener = null;
+        super.dispose();
+    }
 }

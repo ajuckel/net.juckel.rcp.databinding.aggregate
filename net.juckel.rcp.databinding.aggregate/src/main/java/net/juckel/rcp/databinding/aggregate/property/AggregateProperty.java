@@ -26,63 +26,63 @@ import net.juckel.rcp.databinding.aggregate.observables.MapBackedAggregateObserv
 import net.juckel.rcp.databinding.aggregate.observables.SetBackedAggregateObservableMap;
 
 public class AggregateProperty extends ValueProperty implements
-		IAggregateProperty {
-	final IAggregation aggregation;
-	final IListProperty[] listProperties;
-	final Object valueType;
+        IAggregateProperty {
+    final IAggregation aggregation;
+    final IListProperty[] listProperties;
+    final Object valueType;
 
-	public AggregateProperty(IAggregation aggregation,
-			IListProperty... listProperties) {
-		this(null, aggregation, listProperties);
-	}
+    public AggregateProperty(IAggregation aggregation,
+            IListProperty... listProperties) {
+        this(null, aggregation, listProperties);
+    }
 
-	public AggregateProperty(Object valueType, IAggregation aggregation,
-			IListProperty... listProperties) {
-		assert aggregation != null && listProperties != null
-				&& listProperties.length > 0;
-		this.aggregation = aggregation;
-		this.listProperties = new IListProperty[listProperties.length];
-		System.arraycopy(listProperties, 0, this.listProperties, 0,
-				listProperties.length);
-		this.valueType = valueType;
-	}
+    public AggregateProperty(Object valueType, IAggregation aggregation,
+            IListProperty... listProperties) {
+        assert aggregation != null && listProperties != null
+                && listProperties.length > 0;
+        this.aggregation = aggregation;
+        this.listProperties = new IListProperty[listProperties.length];
+        System.arraycopy(listProperties, 0, this.listProperties, 0,
+                listProperties.length);
+        this.valueType = valueType;
+    }
 
-	public IAggregation getAggregation() {
-		return aggregation;
-	}
+    public IAggregation getAggregation() {
+        return aggregation;
+    }
 
-	public IListProperty[] getListProperties() {
-		return this.listProperties;
-	}
+    public IListProperty[] getListProperties() {
+        return this.listProperties;
+    }
 
-	public Object getValueType() {
-		return this.valueType;
-	}
+    public Object getValueType() {
+        return this.valueType;
+    }
 
-	public IObservableValue observe(final Realm realm, final Object source) {
-		final IObservableList[] listsToAggregate = new IObservableList[this.listProperties.length];
+    public IObservableValue observe(final Realm realm, final Object source) {
+        final IObservableList[] listsToAggregate = new IObservableList[this.listProperties.length];
 
-		ObservableTracker.runAndIgnore(new Runnable() {
-			public void run() {
-				for (int i = 0; i < listProperties.length; i++) {
-					listsToAggregate[i] = listProperties[i].observe(realm,
-							source);
-				}
-			}
-		});
+        ObservableTracker.runAndIgnore(new Runnable() {
+            public void run() {
+                for (int i = 0; i < listProperties.length; i++) {
+                    listsToAggregate[i] = listProperties[i].observe(realm,
+                            source);
+                }
+            }
+        });
 
-		return new AggregateObservableValue(this, listsToAggregate);
-	}
+        return new AggregateObservableValue(this, listsToAggregate);
+    }
 
-	public IObservableList observeDetail(final IObservableList master) {
-		return new AggregateObservableList(this, master);
-	}
+    public IObservableList observeDetail(final IObservableList master) {
+        return new AggregateObservableList(this, master);
+    }
 
-	public IObservableMap observeDetail(IObservableSet master) {
-		return new SetBackedAggregateObservableMap(this, master);
-	}
+    public IObservableMap observeDetail(IObservableSet master) {
+        return new SetBackedAggregateObservableMap(this, master);
+    }
 
-	public IObservableMap observeDetail(IObservableMap master) {
-		return new MapBackedAggregateObservableMap(this, master);
-	}
+    public IObservableMap observeDetail(IObservableMap master) {
+        return new MapBackedAggregateObservableMap(this, master);
+    }
 }
